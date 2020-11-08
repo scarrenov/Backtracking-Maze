@@ -5,12 +5,15 @@ public class TileSpawner : MonoBehaviour
 {
     [SerializeField] private Vector2 startingPosition;
     [SerializeField] private GameObject tile;
+
+    private const string TilesParentName = "Tiles";
+    private Stack<Vector2> _previousPos = new Stack<Vector2>();
     private float _xMin, _xMax, _yMin, _yMax;
     private bool _mustReturn;
 
     private void Start()
     {
-        GetCameraBounds();
+        SetCameraBounds();
 
         _mustReturn = startingPosition.x > _xMax || startingPosition.x < _xMin || startingPosition.y > _yMax || startingPosition.y < _yMin;
         if (_mustReturn)
@@ -26,6 +29,13 @@ public class TileSpawner : MonoBehaviour
         SpawnTileAtCurrentPos();
     }
 
+    private static GameObject GetTilesParent()
+    {
+        var tilesParent = GameObject.Find(TilesParentName);
+        if(!tilesParent) tilesParent = new GameObject(TilesParentName);
+        return tilesParent;
+    }
+
     public void MoveSpawner()
     {
         var adjacentPositions = new Vector2[4];
@@ -34,8 +44,20 @@ public class TileSpawner : MonoBehaviour
         adjacentPositions[2] = Vector2.right;
         adjacentPositions[3] = Vector2.left;
 
-        transform.position = GetNewPos(adjacentPositions);
+        var newPos = GetNewPos(adjacentPositions);
+
+        var isOutOfBounds = newPos.x < _xMin || newPos.x > _xMax ||
+                            newPos.y < _yMin || newPos.y > _xMax;
+
+        if (isOutOfBounds)
+        {
+            MoveSpawner();
+            return;
+        }
+
+        transform.position = newPos;
         SpawnTileAtCurrentPos();
+        _previousPos.Push(newPos);
     }
 
     private Vector2 GetNewPos(IReadOnlyList<Vector2> potentialPositions)
@@ -46,16 +68,19 @@ public class TileSpawner : MonoBehaviour
 
         var newXPos = currentPos.x + potentialPos.x;
         var newYPos = currentPos.y + potentialPos.y;
+
+        var newPos = new Vector2(newXPos, newYPos);
         
-        return new Vector2(newXPos, newYPos);
+        return newPos;
     }
 
     private void SpawnTileAtCurrentPos()
     {
         var spawnedTile = Instantiate(tile, transform.position, Quaternion.identity);
+        spawnedTile.transform.parent = GetTilesParent().transform;
     }
 
-    private void GetCameraBounds()
+    private void SetCameraBounds()
     {
         var mainCamera = Camera.main;
         if (mainCamera is null) return;
