@@ -8,7 +8,7 @@ public class TileSpawner : MonoBehaviour
     [SerializeField] private GameObject tile;
 
     private Stack<Vector2> _previousPos = new Stack<Vector2>();
-    private List<Vector2> _spawnedTilePos = new List<Vector2>();
+    private readonly List<Vector2> _spawnedTilePos = new List<Vector2>();
     private const string TilesParentName = "Tiles";
     private float _xMin, _xMax, _yMin, _yMax;
     private bool _mustReturn;
@@ -37,7 +37,7 @@ public class TileSpawner : MonoBehaviour
         _previousPos.Push(transform.position);
         
         var isOutOfBounds = newPos.x < _xMin || newPos.x > _xMax ||
-                            newPos.y < _yMin || newPos.y > _xMax;
+                            newPos.y < _yMin || newPos.y > _yMax;
         
         if (isOutOfBounds)
         {
@@ -53,12 +53,9 @@ public class TileSpawner : MonoBehaviour
     private Vector2 GetNewPos(IReadOnlyList<Vector2> potentialPositions)
     {
         var index = Random.Range(0, potentialPositions.Count);
-        var currentPos = transform.position;
+        Vector2 currentPos = transform.position;
         var potentialPos = potentialPositions[index];
-
-        var newXPos = currentPos.x + potentialPos.x;
-        var newYPos = currentPos.y + potentialPos.y;
-        var newPos = new Vector2(newXPos, newYPos);
+        var newPos = currentPos + potentialPos;
 
         return _previousPos.Count > 0 && _previousPos.Peek() == newPos ? GetNewPos(potentialPositions) : newPos;
     }
