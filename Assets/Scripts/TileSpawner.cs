@@ -29,13 +29,6 @@ public class TileSpawner : MonoBehaviour
         SpawnTileAtCurrentPos();
     }
 
-    private static GameObject GetTilesParent()
-    {
-        var tilesParent = GameObject.Find(TilesParentName);
-        if(!tilesParent) tilesParent = new GameObject(TilesParentName);
-        return tilesParent;
-    }
-
     public void MoveSpawner()
     {
         var adjacentPositions = new Vector2[4];
@@ -45,19 +38,22 @@ public class TileSpawner : MonoBehaviour
         adjacentPositions[3] = Vector2.left;
 
         var newPos = GetNewPos(adjacentPositions);
-
+        _previousPos.Push(transform.position);
+        
         var isOutOfBounds = newPos.x < _xMin || newPos.x > _xMax ||
                             newPos.y < _yMin || newPos.y > _xMax;
-
+        
         if (isOutOfBounds)
         {
+            _previousPos.Pop();
             MoveSpawner();
             return;
         }
 
         transform.position = newPos;
         SpawnTileAtCurrentPos();
-        _previousPos.Push(newPos);
+
+        Debug.Log("Tile won't move to pos on next call: " + _previousPos.Peek());
     }
 
     private Vector2 GetNewPos(IReadOnlyList<Vector2> potentialPositions)
@@ -68,15 +64,15 @@ public class TileSpawner : MonoBehaviour
 
         var newXPos = currentPos.x + potentialPos.x;
         var newYPos = currentPos.y + potentialPos.y;
-
         var newPos = new Vector2(newXPos, newYPos);
-        
-        return newPos;
+
+        return _previousPos.Count > 0 && _previousPos.Peek() == newPos ? GetNewPos(potentialPositions) : newPos;
     }
 
     private void SpawnTileAtCurrentPos()
     {
-        var spawnedTile = Instantiate(tile, transform.position, Quaternion.identity);
+        var currentPos = transform.position;
+        var spawnedTile = Instantiate(tile, currentPos, Quaternion.identity);
         spawnedTile.transform.parent = GetTilesParent().transform;
     }
 
@@ -90,5 +86,12 @@ public class TileSpawner : MonoBehaviour
         _xMax = mainCamera.ViewportToWorldPoint(Vector3.right).x;
         _yMin = startingPoint.y;
         _yMax = mainCamera.ViewportToWorldPoint(Vector3.up).y;
+    }
+
+    private static GameObject GetTilesParent()
+    {
+        var tilesParent = GameObject.Find(TilesParentName);
+        if(!tilesParent) tilesParent = new GameObject(TilesParentName);
+        return tilesParent;
     }
 }
