@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class TileSpawner : MonoBehaviour
@@ -6,8 +7,9 @@ public class TileSpawner : MonoBehaviour
     [SerializeField] private Vector2 startingPosition;
     [SerializeField] private GameObject tile;
 
-    private const string TilesParentName = "Tiles";
     private Stack<Vector2> _previousPos = new Stack<Vector2>();
+    private List<Vector2> _spawnedTilePos = new List<Vector2>();
+    private const string TilesParentName = "Tiles";
     private float _xMin, _xMax, _yMin, _yMax;
     private bool _mustReturn;
 
@@ -31,13 +33,7 @@ public class TileSpawner : MonoBehaviour
 
     public void MoveSpawner()
     {
-        var adjacentPositions = new Vector2[4];
-        adjacentPositions[0] = Vector2.up;
-        adjacentPositions[1] = Vector2.down;
-        adjacentPositions[2] = Vector2.right;
-        adjacentPositions[3] = Vector2.left;
-
-        var newPos = GetNewPos(adjacentPositions);
+        var newPos = GetNewPos(GetAdjacentPositions());
         _previousPos.Push(transform.position);
         
         var isOutOfBounds = newPos.x < _xMin || newPos.x > _xMax ||
@@ -52,8 +48,6 @@ public class TileSpawner : MonoBehaviour
 
         transform.position = newPos;
         SpawnTileAtCurrentPos();
-
-        Debug.Log("Tile won't move to pos on next call: " + _previousPos.Peek());
     }
 
     private Vector2 GetNewPos(IReadOnlyList<Vector2> potentialPositions)
@@ -74,6 +68,7 @@ public class TileSpawner : MonoBehaviour
         var currentPos = transform.position;
         var spawnedTile = Instantiate(tile, currentPos, Quaternion.identity);
         spawnedTile.transform.parent = GetTilesParent().transform;
+        _spawnedTilePos.Add(spawnedTile.transform.position);
     }
 
     private void SetCameraBounds()
@@ -93,5 +88,24 @@ public class TileSpawner : MonoBehaviour
         var tilesParent = GameObject.Find(TilesParentName);
         if(!tilesParent) tilesParent = new GameObject(TilesParentName);
         return tilesParent;
+    }
+
+    private List<Vector2> GetAdjacentPositions()
+    {
+        var adjacentPositions = new List<Vector2> {Vector2.up, Vector2.down, Vector2.right, Vector2.left};
+
+        for (var i = 0; i < adjacentPositions.Count; i++)
+        {
+            var position = adjacentPositions[i];
+            Vector2 currentPos = transform.position;
+            var tileToAdjacent = currentPos + position;
+
+            foreach (var unused in _spawnedTilePos.Where(tilePos => tilePos == tileToAdjacent))
+            {
+                adjacentPositions.RemoveAt(i);
+            }
+        }
+
+        return adjacentPositions;
     }
 }
