@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 public class TileSpawner : MonoBehaviour
 {
@@ -8,17 +9,16 @@ public class TileSpawner : MonoBehaviour
     [SerializeField] private GameObject tile;
 
     private Stack<Vector2> _previousPos = new Stack<Vector2>();
-    private readonly List<Vector2> _spawnedTilePos = new List<Vector2>();
-    private const string TilesParentName = "Tiles";
+    private readonly List<Vector2> _spawnedTilesPos = new List<Vector2>();
+    private const string TilesParentNameRef = "Tiles";
     private float _xMin, _xMax, _yMin, _yMax;
     private bool _mustReturn;
 
     private void Start()
     {
         SetCameraBounds();
-
-        _mustReturn = startingPosition.x > _xMax || startingPosition.x < _xMin || startingPosition.y > _yMax || startingPosition.y < _yMin;
-        if (_mustReturn)
+        
+        if (IsOutOfBounds(startingPosition))
         {
             Debug.LogWarning("The spawner starting position exceeds the bounds of the game camera");
             return;
@@ -33,13 +33,13 @@ public class TileSpawner : MonoBehaviour
 
     public void MoveSpawner()
     {
-        var newPos = GetNewPos(GetAdjacentPositions());
+        var newPos = GetNewPos(GetPossibleAdjacentPositions());
         _previousPos.Push(transform.position);
-        
-        var isOutOfBounds = newPos.x < _xMin || newPos.x > _xMax ||
-                            newPos.y < _yMin || newPos.y > _yMax;
-        
-        if (isOutOfBounds)
+
+        if (newPos == Vector2.positiveInfinity)
+            return;
+
+        if (IsOutOfBounds(newPos))
         {
             _previousPos.Pop();
             MoveSpawner();
@@ -54,7 +54,19 @@ public class TileSpawner : MonoBehaviour
     {
         var index = Random.Range(0, potentialPositions.Count);
         Vector2 currentPos = transform.position;
-        var potentialPos = potentialPositions[index];
+
+        Vector2 potentialPos;
+        if (potentialPositions.Count > 0)
+        {
+            potentialPos = potentialPositions[index];
+        }
+        else
+        {
+            Debug.Log("No available adjacent positions were found");
+            return Vector2.positiveInfinity;
+        }
+        
+        
         var newPos = currentPos + potentialPos;
 
         return _previousPos.Count > 0 && _previousPos.Peek() == newPos ? GetNewPos(potentialPositions) : newPos;
@@ -65,7 +77,7 @@ public class TileSpawner : MonoBehaviour
         var currentPos = transform.position;
         var spawnedTile = Instantiate(tile, currentPos, Quaternion.identity);
         spawnedTile.transform.parent = GetTilesParent().transform;
-        _spawnedTilePos.Add(spawnedTile.transform.position);
+        _spawnedTilesPos.Add(spawnedTile.transform.position);
     }
 
     private void SetCameraBounds()
@@ -82,27 +94,33 @@ public class TileSpawner : MonoBehaviour
 
     private static GameObject GetTilesParent()
     {
-        var tilesParent = GameObject.Find(TilesParentName);
-        if(!tilesParent) tilesParent = new GameObject(TilesParentName);
+        var tilesParent = GameObject.Find(TilesParentNameRef);
+        if(!tilesParent) tilesParent = new GameObject(TilesParentNameRef);
         return tilesParent;
     }
 
-    private List<Vector2> GetAdjacentPositions()
+    private List<Vector2> GetPossibleAdjacentPositions()
     {
         var adjacentPositions = new List<Vector2> {Vector2.up, Vector2.down, Vector2.right, Vector2.left};
+        Vector2 currentPos = transform.position;
 
-        for (var i = 0; i < adjacentPositions.Count; i++)
+        foreach (var spawnedToCurrent in _spawnedTilesPos.Select(spawnedTile => spawnedTile - currentPos))
         {
-            var position = adjacentPositions[i];
-            Vector2 currentPos = transform.position;
-            var tileToAdjacent = currentPos + position;
-
-            foreach (var unused in _spawnedTilePos.Where(tilePos => tilePos == tileToAdjacent))
+            for (var i = 0; i < adjacentPositions.Count; i++)
             {
-                adjacentPositions.RemoveAt(i);
+                if (spawnedToCurrent == adjacentPositions[i])
+                {
+                    adjacentPositions.RemoveAt(i);
+                }
             }
         }
 
-        return adjacentPositions;
+        return adjacentPositions.Count > 0 ? adjacentPositions : null;
+    }
+
+    private bool IsOutOfBounds(Vector2 pos)
+    {
+        return pos.x < _xMin || pos.x > _xMax ||
+               pos.y < _yMin || pos.y > _yMax;
     }
 }
