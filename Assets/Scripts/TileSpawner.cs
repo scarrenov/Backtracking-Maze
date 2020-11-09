@@ -1,22 +1,35 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
 public class TileSpawner : MonoBehaviour
 {
     [SerializeField] private Vector2 startingPosition;
     [SerializeField] private GameObject tile;
+    [SerializeField] private LineRenderer lineRenderer;
+    [SerializeField] private float timeBetweenSpawns = .6f;
+    [SerializeField] private bool autoSpawn = true;
     [SerializeField] private Color[] pathColors;
 
+    private LineRenderer _currentWallRenderer;
     private Color _currentPathColor;
     private readonly Stack<Vector2> _previousPos = new Stack<Vector2>();
     private readonly List<Vector2> _spawnedTilesPos = new List<Vector2>();
-    private const string TilesParentNameRef = "Tiles";
     private float _xMin, _xMax, _yMin, _yMax;
+    
+    // String references
+    private const string WallRendererParentNameRef = "Wall Renderers";
+    private const string TilesParentNameRef = "Tiles";
 
-    private void Start()
+    private IEnumerator Start()
     {
+        FindObjectOfType<Toggle>().isOn = autoSpawn;
+        _currentWallRenderer = GetNewWallRenderer();
+
         var colorIndex = Random.Range(0, pathColors.Length);
         _currentPathColor = pathColors[colorIndex];
         SetCameraBounds();
@@ -24,7 +37,7 @@ public class TileSpawner : MonoBehaviour
         if (IsOutOfBounds(startingPosition))
         {
             Debug.LogWarning("The spawner starting position exceeds the bounds of the game camera");
-            return;
+            yield return null;
         }
 
         var roundedStartingXPos = Mathf.RoundToInt(startingPosition.x);
@@ -32,12 +45,36 @@ public class TileSpawner : MonoBehaviour
         
         transform.position = new Vector2(roundedStartingXPos, roundedStartingYPos);
         SpawnTileAtCurrentPos();
+
+        while (true)
+        {
+            yield return new WaitForSeconds(timeBetweenSpawns);
+            if (autoSpawn)
+            {
+                MoveSpawner();
+            }
+        }
+    }
+
+    private LineRenderer GetNewWallRenderer()
+    {
+        Vector2 currentPos = transform.position;
+        var newLineRenderer = Instantiate(lineRenderer, currentPos, Quaternion.identity);
+        newLineRenderer.transform.parent = GetObjectParent(WallRendererParentNameRef).transform;
+        
+        newLineRenderer.SetPosition(0, new Vector3(currentPos.x, currentPos.y, -.1f));
+
+        return newLineRenderer;
     }
 
     public void MoveSpawner()
     {
         var newPos = GetNewPos(GetPossibleAdjacentPositions());
         _previousPos.Push(newPos);
+        var positionCount = _currentWallRenderer.positionCount;
+        positionCount++;
+        _currentWallRenderer.positionCount = positionCount;
+        _currentWallRenderer.SetPosition(positionCount - 1, new Vector3(newPos.x, newPos.y, -.1f));
 
         if (newPos == new Vector2())
             return;
@@ -60,6 +97,16 @@ public class TileSpawner : MonoBehaviour
             transform.position = _previousPos.Pop();
             var colorIndex = Random.Range(0, pathColors.Length);
             _currentPathColor = pathColors[colorIndex];
+
+            foreach (var lineRend in FindObjectsOfType<LineRenderer>())
+            {
+                if (lineRend.positionCount < 2)
+                {
+                    Destroy(lineRend.gameObject);
+                }
+            }
+
+            _currentWallRenderer = GetNewWallRenderer();
             
             return GetNewPos(GetPossibleAdjacentPositions());
         }
@@ -78,7 +125,7 @@ public class TileSpawner : MonoBehaviour
         var currentPos = transform.position;
         var spawnedTile = Instantiate(tile, currentPos, Quaternion.identity);
         spawnedTile.GetComponent<SpriteRenderer>().color = _currentPathColor;
-        spawnedTile.transform.parent = GetTilesParent().transform;
+        spawnedTile.transform.parent = GetObjectParent(TilesParentNameRef).transform;
         
         _spawnedTilesPos.Add(spawnedTile.transform.position);
     }
@@ -95,10 +142,10 @@ public class TileSpawner : MonoBehaviour
         _yMax = mainCamera.ViewportToWorldPoint(Vector3.up).y;
     }
 
-    private static GameObject GetTilesParent()
+    private static GameObject GetObjectParent(string nameRef)
     {
-        var tilesParent = GameObject.Find(TilesParentNameRef);
-        if(!tilesParent) tilesParent = new GameObject(TilesParentNameRef);
+        var tilesParent = GameObject.Find(nameRef);
+        if(!tilesParent) tilesParent = new GameObject(nameRef);
         return tilesParent;
     }
 
@@ -130,4 +177,8 @@ public class TileSpawner : MonoBehaviour
     private bool IsOutOfBounds(Vector2 pos) =>
         pos.x < _xMin || pos.x > _xMax ||
         pos.y < _yMin || pos.y > _yMax;
+
+    public void SetAutoSpawn(bool value) => autoSpawn = value;
+
+    public void ReloadScene() => SceneManager.LoadScene(SceneManager.GetActiveScene().name);
 }
