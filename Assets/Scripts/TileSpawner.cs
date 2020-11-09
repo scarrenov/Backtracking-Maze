@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -179,6 +180,12 @@ public class TileSpawner : MonoBehaviour
         pos.y < _yMin || pos.y > _yMax;
 
     public void SetAutoSpawn(bool value) => autoSpawn = value;
+    public void SetSpawnLapse(string value)
+    {
+        if(value == string.Empty) return;
+        
+        timeBetweenSpawns = Convert.ToSingle(value);
+    }
 
     public void ReloadScene() => SceneManager.LoadScene(SceneManager.GetActiveScene().name);
 }
