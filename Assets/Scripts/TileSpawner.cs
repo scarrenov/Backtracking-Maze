@@ -7,8 +7,10 @@ public class TileSpawner : MonoBehaviour
 {
     [SerializeField] private Vector2 startingPosition;
     [SerializeField] private GameObject tile;
+    [SerializeField] private Color[] pathColors;
 
-    private Stack<Vector2> _previousPos = new Stack<Vector2>();
+    private Color _currentPathColor;
+    private readonly Stack<Vector2> _previousPos = new Stack<Vector2>();
     private readonly List<Vector2> _spawnedTilesPos = new List<Vector2>();
     private const string TilesParentNameRef = "Tiles";
     private float _xMin, _xMax, _yMin, _yMax;
@@ -16,6 +18,8 @@ public class TileSpawner : MonoBehaviour
 
     private void Start()
     {
+        var colorIndex = Random.Range(0, pathColors.Length);
+        _currentPathColor = pathColors[colorIndex];
         SetCameraBounds();
         
         if (IsOutOfBounds(startingPosition))
@@ -36,7 +40,7 @@ public class TileSpawner : MonoBehaviour
         var newPos = GetNewPos(GetPossibleAdjacentPositions());
         _previousPos.Push(transform.position);
 
-        if (newPos == Vector2.positiveInfinity)
+        if (newPos == new Vector2())
             return;
 
         if (IsOutOfBounds(newPos))
@@ -52,21 +56,19 @@ public class TileSpawner : MonoBehaviour
 
     private Vector2 GetNewPos(IReadOnlyList<Vector2> potentialPositions)
     {
+        if (potentialPositions == null)
+        {
+            transform.position = _previousPos.Pop();
+            var colorIndex = Random.Range(0, pathColors.Length);
+            _currentPathColor = pathColors[colorIndex];
+            
+            return GetNewPos(GetPossibleAdjacentPositions());
+        }
+        
         var index = Random.Range(0, potentialPositions.Count);
         Vector2 currentPos = transform.position;
+        var potentialPos = potentialPositions[index];
 
-        Vector2 potentialPos;
-        if (potentialPositions.Count > 0)
-        {
-            potentialPos = potentialPositions[index];
-        }
-        else
-        {
-            Debug.Log("No available adjacent positions were found");
-            return Vector2.positiveInfinity;
-        }
-        
-        
         var newPos = currentPos + potentialPos;
 
         return _previousPos.Count > 0 && _previousPos.Peek() == newPos ? GetNewPos(potentialPositions) : newPos;
@@ -76,7 +78,9 @@ public class TileSpawner : MonoBehaviour
     {
         var currentPos = transform.position;
         var spawnedTile = Instantiate(tile, currentPos, Quaternion.identity);
+        spawnedTile.GetComponent<SpriteRenderer>().color = _currentPathColor;
         spawnedTile.transform.parent = GetTilesParent().transform;
+        
         _spawnedTilesPos.Add(spawnedTile.transform.position);
     }
 
@@ -99,7 +103,7 @@ public class TileSpawner : MonoBehaviour
         return tilesParent;
     }
 
-    private List<Vector2> GetPossibleAdjacentPositions()
+    private Vector2[] GetPossibleAdjacentPositions()
     {
         var adjacentPositions = new List<Vector2> {Vector2.up, Vector2.down, Vector2.right, Vector2.left};
         Vector2 currentPos = transform.position;
@@ -108,14 +112,20 @@ public class TileSpawner : MonoBehaviour
         {
             for (var i = 0; i < adjacentPositions.Count; i++)
             {
-                if (spawnedToCurrent == adjacentPositions[i])
+                var adjacentPosition = adjacentPositions[i];
+                if (spawnedToCurrent == adjacentPosition)
+                {
+                    adjacentPositions.RemoveAt(i);
+                }
+
+                if (IsOutOfBounds(currentPos + adjacentPosition))
                 {
                     adjacentPositions.RemoveAt(i);
                 }
             }
         }
 
-        return adjacentPositions.Count > 0 ? adjacentPositions : null;
+        return (adjacentPositions.Count > 0 ? adjacentPositions : null)?.ToArray();
     }
 
     private bool IsOutOfBounds(Vector2 pos)
