@@ -14,7 +14,6 @@ public class TileSpawner : MonoBehaviour
     private readonly List<Vector2> _spawnedTilesPos = new List<Vector2>();
     private const string TilesParentNameRef = "Tiles";
     private float _xMin, _xMax, _yMin, _yMax;
-    private bool _mustReturn;
 
     private void Start()
     {
@@ -38,7 +37,7 @@ public class TileSpawner : MonoBehaviour
     public void MoveSpawner()
     {
         var newPos = GetNewPos(GetPossibleAdjacentPositions());
-        _previousPos.Push(transform.position);
+        _previousPos.Push(newPos);
 
         if (newPos == new Vector2())
             return;
@@ -128,9 +127,7 @@ public class TileSpawner : MonoBehaviour
         return (adjacentPositions.Count > 0 ? adjacentPositions : null)?.ToArray();
     }
 
-    private bool IsOutOfBounds(Vector2 pos)
-    {
-        return pos.x < _xMin || pos.x > _xMax ||
-               pos.y < _yMin || pos.y > _yMax;
-    }
+    private bool IsOutOfBounds(Vector2 pos) =>
+        pos.x < _xMin || pos.x > _xMax ||
+        pos.y < _yMin || pos.y > _yMax;
 }
