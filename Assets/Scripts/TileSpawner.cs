@@ -9,7 +9,6 @@ using Random = UnityEngine.Random;
 
 public class TileSpawner : MonoBehaviour
 {
-    [SerializeField] private Vector2 startingPosition;
     [SerializeField] private GameObject tile;
     [SerializeField] private LineRenderer lineRenderer;
     [SerializeField] private float timeBetweenSpawns = .6f;
@@ -29,23 +28,25 @@ public class TileSpawner : MonoBehaviour
     private IEnumerator Start()
     {
         FindObjectOfType<Toggle>().isOn = autoSpawn;
-        _currentWallRenderer = GetNewWallRenderer();
 
         var colorIndex = Random.Range(0, pathColors.Length);
         _currentPathColor = pathColors[colorIndex];
         SetCameraBounds();
         
-        if (IsOutOfBounds(startingPosition))
+        if (IsOutOfBounds(transform.position))
         {
             Debug.LogWarning("The spawner starting position exceeds the bounds of the game camera");
             yield return null;
         }
 
-        var roundedStartingXPos = Mathf.RoundToInt(startingPosition.x);
-        var roundedStartingYPos = Mathf.RoundToInt(startingPosition.y);
+        var position = transform.position;
+        var roundedStartingXPos = Mathf.RoundToInt(position.x);
+        var roundedStartingYPos = Mathf.RoundToInt(position.y);
         
-        transform.position = new Vector2(roundedStartingXPos, roundedStartingYPos);
+        position = new Vector2(roundedStartingXPos, roundedStartingYPos);
+        transform.position = position;
         SpawnTileAtCurrentPos();
+        _currentWallRenderer = GetNewWallRenderer();
 
         while (true)
         {
