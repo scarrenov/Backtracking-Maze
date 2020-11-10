@@ -39,14 +39,16 @@ public class TileSpawner : MonoBehaviour
             yield return null;
         }
 
-        var position = transform.position;
+        var position1 = transform.position;
+        var position = position1;
         var roundedStartingXPos = Mathf.RoundToInt(position.x);
         var roundedStartingYPos = Mathf.RoundToInt(position.y);
         
         position = new Vector2(roundedStartingXPos, roundedStartingYPos);
-        transform.position = position;
+        position1 = position;
+        transform.position = position1;
         SpawnTileAtCurrentPos();
-        _currentWallRenderer = GetNewWallRenderer();
+        _currentWallRenderer = GetNewWallRenderer(position1);
 
         while (true)
         {
@@ -58,13 +60,13 @@ public class TileSpawner : MonoBehaviour
         }
     }
 
-    private LineRenderer GetNewWallRenderer()
+    private LineRenderer GetNewWallRenderer(Vector2 lineStartPos)
     {
         Vector2 currentPos = transform.position;
         var newLineRenderer = Instantiate(lineRenderer, currentPos, Quaternion.identity);
         newLineRenderer.transform.parent = GetObjectParent(WallRendererParentNameRef).transform;
         
-        newLineRenderer.SetPosition(0, new Vector3(currentPos.x, currentPos.y, -.1f));
+        newLineRenderer.SetPosition(0, new Vector3(lineStartPos.x, lineStartPos.y, -.1f));
 
         return newLineRenderer;
     }
@@ -77,6 +79,8 @@ public class TileSpawner : MonoBehaviour
         positionCount++;
         _currentWallRenderer.positionCount = positionCount;
         _currentWallRenderer.SetPosition(positionCount - 1, new Vector3(newPos.x, newPos.y, -.1f));
+
+        _currentWallRenderer = GetNewWallRenderer(newPos);
 
         if (newPos == new Vector2())
             return;
@@ -108,7 +112,7 @@ public class TileSpawner : MonoBehaviour
                 }
             }
 
-            _currentWallRenderer = GetNewWallRenderer();
+            _currentWallRenderer = GetNewWallRenderer(transform.position);
             
             return GetNewPos(GetPossibleAdjacentPositions());
         }
